@@ -59,7 +59,8 @@ export function SpaceSwitcher({ currentSpaceSlug }: { currentSpaceSlug?: string 
   };
 
   const currentSpace = spaces.find(s => s.slug === currentSpaceSlug);
-  const displayName = currentSpace?.name || 'Select Space';
+  const isPublicMode = !currentSpaceSlug;
+  const displayName = isPublicMode ? 'Public Community' : currentSpace?.name || 'Select Space';
 
   return (
     <DropdownMenu>
@@ -70,12 +71,27 @@ export function SpaceSwitcher({ currentSpaceSlug }: { currentSpaceSlug?: string 
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-56">
-        <DropdownMenuLabel>Spaces</DropdownMenuLabel>
+        <DropdownMenuLabel>Spaces & Community</DropdownMenuLabel>
         <DropdownMenuSeparator />
+        
+        {/* Public Community Option */}
+        <DropdownMenuItem
+          onClick={() => router.push('/dashboard')}
+          className={isPublicMode ? 'bg-accent' : ''}
+        >
+          <div className="flex flex-col gap-1 flex-1">
+            <span className="font-medium">Public Community</span>
+            <span className="text-xs opacity-60">Global • Everyone</span>
+          </div>
+        </DropdownMenuItem>
+
+        {spaces.length > 0 && <DropdownMenuSeparator />}
+
+        {/* Private Spaces */}
         {spaces.map(space => (
           <DropdownMenuItem
             key={space.id}
-            onClick={() => router.push(`/spaces/${space.slug}`)}
+            onClick={() => router.push(`/space/${space.slug}`)}
             className={currentSpaceSlug === space.slug ? 'bg-accent' : ''}
           >
             <div className="flex flex-col gap-1 flex-1">
@@ -84,10 +100,12 @@ export function SpaceSwitcher({ currentSpaceSlug }: { currentSpaceSlug?: string 
             </div>
           </DropdownMenuItem>
         ))}
-        <DropdownMenuSeparator />
+        
+        {spaces.length > 0 && <DropdownMenuSeparator />}
+        
         <DropdownMenuItem onClick={() => router.push('/spaces/create')}>
           <Plus className="h-4 w-4 mr-2" />
-          Create Space
+          Create Private Space
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
