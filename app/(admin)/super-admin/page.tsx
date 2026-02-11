@@ -7,7 +7,14 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Building2, Users, Settings, AlertCircle, Trash2, TrendingUp } from "lucide-react"
+import { Building2, Users, Settings, AlertCircle, Trash2, TrendingUp, Shield } from "lucide-react"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 interface SpaceAdmin {
   id: string
@@ -22,12 +29,27 @@ interface SpaceAdmin {
   member_count: number
 }
 
+interface SpaceMember {
+  id: string
+  user_id: string
+  role: "owner" | "admin" | "member"
+  joined_at: string
+  profiles: {
+    username: string
+    email: string
+    avatar_url?: string
+  }
+}
+
 export default function SuperAdminPage() {
   const router = useRouter()
   const supabase = createBrowserClient()
   const [isAdmin, setIsAdmin] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [spaces, setSpaces] = useState<SpaceAdmin[]>([])
+  const [selectedSpaceForAdmins, setSelectedSpaceForAdmins] = useState<string>("")
+  const [spaceMembers, setSpaceMembers] = useState<SpaceMember[]>([])
+  const [loadingMembers, setLoadingMembers] = useState(false)
   const [stats, setStats] = useState({
     totalSpaces: 0,
     totalUsers: 0,
@@ -141,6 +163,42 @@ export default function SuperAdminPage() {
     }
   }
 
+  const loadSpaceMembers = async (spaceId: string) => {
+    setLoadingMembers(true)
+    try {
+      const response = await fetch(`/api/spaces/${spaceId}/admins`)
+      if (!response.ok) throw new Error("Failed to fetch members")
+      
+      const { members } = await response.json()
+      setSpaceMembers(members || [])
+    } catch (error) {
+      console.error("Error loading members:", error)
+      alert("Failed to load space members")
+    } finally {
+      setLoadingMembers(false)
+    }
+  }
+
+  const handleUpdateMemberRole = async (memberId: string, newRole: string) => {
+    if (!selectedSpaceForAdmins) return
+
+    try {
+      const response = await fetch(`/api/spaces/${selectedSpaceForAdmins}/admins`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ memberId, role: newRole }),
+      })
+
+      if (!response.ok) throw new Error("Failed to update role")
+      
+      await loadSpaceMembers(selectedSpaceForAdmins)
+      alert("Role updated successfully")
+    } catch (error) {
+      console.error("Error updating role:", error)
+      alert("Failed to update member role")
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -219,6 +277,10 @@ export default function SuperAdminPage() {
           <TabsTrigger value="spaces">
             <Building2 className="w-4 h-4 mr-2" />
             All Spaces
+          </TabsTrigger>
+          <TabsTrigger value="admins">
+            <Shield className="w-4 h-4 mr-2" />
+            Manage Admins
           </TabsTrigger>
           <TabsTrigger value="settings">
             <Settings className="w-4 h-4 mr-2" />
@@ -308,6 +370,102 @@ export default function SuperAdminPage() {
                   </tbody>
                 </table>
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Manage Admins Tab */}
+        <TabsContent value="admins" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Manage Space Admins</CardTitle>
+              <CardDescription>Promote or demote space members to admin roles</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <label className="text-sm font-medium block mb-2">Select Space</label>
+                <Select value={selectedSpaceForAdmins} onValueChange={(value) => {
+                  setSelectedSpaceForAdmins(value)
+                  loadSpaceMembers(value)
+                }}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose a space..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {spaces.map(space => (
+                      <SelectItem key={space.id} value={space.id}>
+                        {space.name} ({space.member_count} members)
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {selectedSpaceForAdmins && (
+                <div>
+                  {loadingMembers ? (
+                    <p className="text-sm text-muted-foreground">Loading members...</p>
+                  ) : spaceMembers.length > 0 ? (
+                    <div className="border border-border/40 rounded-lg overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead className="border-b border-border/40 bg-muted/30">
+                          <tr>
+                            <th className="text-left py-3 px-4 font-semibold">Member</th>
+                            <th className="text-left py-3 px-4 font-semibold">Current Role</th>
+                            <th className="text-left py-3 px-4 font-semibold">Change Role</th>
+                            <th className="text-left py-3 px-4 font-semibold">Joined</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {spaceMembers.map(member => (
+                            <tr key={member.id} className="border-b border-border/20 hover:bg-accent/5">
+                              <td className="py-3 px-4">
+                                <div>
+                                  <p className="font-semibold text-sm">{member.profiles.username}</p>
+                                  <p className="text-xs text-muted-foreground">{member.profiles.email}</p>
+                                </div>
+                              </td>
+                              <td className="py-3 px-4">
+                                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                  member.role === "owner" ? "bg-accent/20 text-accent" :
+                                  member.role === "admin" ? "bg-primary/20 text-primary" :
+                                  "bg-muted/20 text-muted-foreground"
+                                }`}>
+                                  {member.role.charAt(0).toUpperCase() + member.role.slice(1)}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4">
+                                {member.role !== "owner" && (
+                                  <Select 
+                                    defaultValue={member.role}
+                                    onValueChange={(newRole) => handleUpdateMemberRole(member.id, newRole)}
+                                  >
+                                    <SelectTrigger className="w-32">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="member">Member</SelectItem>
+                                      <SelectItem value="admin">Admin</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                )}
+                                {member.role === "owner" && (
+                                  <span className="text-xs text-muted-foreground">Cannot change owner</span>
+                                )}
+                              </td>
+                              <td className="py-3 px-4 text-sm text-muted-foreground">
+                                {new Date(member.joined_at).toLocaleDateString()}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No members in this space</p>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
