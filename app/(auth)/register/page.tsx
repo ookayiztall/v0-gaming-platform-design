@@ -10,11 +10,15 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Lock, Users } from "lucide-react"
 
 export default function RegisterPage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
+  const [spaceType, setSpaceType] = useState<"private" | "public">("private")
+  const [planTier, setPlanTier] = useState<"free" | "paid">("free")
   const [formData, setFormData] = useState({
     username: "",
     email: "",
@@ -66,8 +70,10 @@ export default function RegisterPage() {
         options: {
           data: {
             username: formData.username,
+            spaceType,
+            planTier,
           },
-          emailRedirectTo: `${window.location.origin}/dashboard`,
+          emailRedirectTo: `${window.location.origin}/verify-email`,
         },
       })
 
@@ -106,6 +112,65 @@ export default function RegisterPage() {
         {error && (
           <div className="p-3 rounded-md bg-destructive/10 border border-destructive/30 text-destructive text-sm">
             {error}
+          </div>
+        )}
+
+        {/* Space Type Selection */}
+        <div className="space-y-3">
+          <p className="text-sm font-medium text-foreground">Choose Your Experience</p>
+          <div className="grid grid-cols-2 gap-3">
+            {/* Private Space Option */}
+            <button
+              type="button"
+              onClick={() => setSpaceType("private")}
+              className={`p-4 rounded-lg border-2 transition-all cursor-pointer ${
+                spaceType === "private"
+                  ? "border-primary bg-primary/10"
+                  : "border-border bg-card hover:border-primary/50"
+              }`}
+            >
+              <Lock className="h-5 w-5 mx-auto mb-2 text-primary" />
+              <p className="font-semibold text-sm">Private Space</p>
+              <p className="text-xs text-muted-foreground">Family & friends</p>
+            </button>
+
+            {/* Public Option */}
+            <button
+              type="button"
+              onClick={() => setSpaceType("public")}
+              className={`p-4 rounded-lg border-2 transition-all cursor-pointer ${
+                spaceType === "public"
+                  ? "border-primary bg-primary/10"
+                  : "border-border bg-card hover:border-primary/50"
+              }`}
+            >
+              <Users className="h-5 w-5 mx-auto mb-2 text-accent" />
+              <p className="font-semibold text-sm">Public Community</p>
+              <p className="text-xs text-muted-foreground">Global gaming hub</p>
+            </button>
+          </div>
+        </div>
+
+        {/* Plan Selection - Only for Private Space */}
+        {spaceType === "private" && (
+          <div className="space-y-3 p-4 rounded-lg bg-primary/5 border border-primary/20">
+            <p className="text-sm font-medium text-foreground">Choose a Plan</p>
+            <RadioGroup value={planTier} onValueChange={(value) => setPlanTier(value as "free" | "paid")}>
+              <div className="flex items-center space-x-3 p-2 rounded cursor-pointer hover:bg-primary/10">
+                <RadioGroupItem value="free" id="free" />
+                <label htmlFor="free" className="cursor-pointer flex-1">
+                  <p className="font-medium text-sm">Free Plan</p>
+                  <p className="text-xs text-muted-foreground">Up to 5 members</p>
+                </label>
+              </div>
+              <div className="flex items-center space-x-3 p-2 rounded cursor-pointer hover:bg-primary/10">
+                <RadioGroupItem value="paid" id="paid" />
+                <label htmlFor="paid" className="cursor-pointer flex-1">
+                  <p className="font-medium text-sm">Premium Plan</p>
+                  <p className="text-xs text-muted-foreground">Unlimited members - $9.99/month</p>
+                </label>
+              </div>
+            </RadioGroup>
           </div>
         )}
 
