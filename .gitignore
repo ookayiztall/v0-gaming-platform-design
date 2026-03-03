@@ -25,3 +25,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Ignore conflicting admin route group files
+# These create parallel route conflicts with (public) and (protected) groups
+app/(admin)/blog/page.tsx
+app/(admin)/dashboard/page.tsx

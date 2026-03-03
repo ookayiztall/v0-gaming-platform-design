@@ -13,10 +13,12 @@ export default function GamesPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [games, setGames] = useState<GameCardProps[]>([])
   const [loading, setLoading] = useState(true)
+  const [spaceId, setSpaceId] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchGames = async () => {
       try {
+        // Fetch games (same catalog for all spaces)
         const response = await fetch("/api/games")
         if (response.ok) {
           const data = await response.json()
@@ -41,7 +43,7 @@ export default function GamesPage() {
     }
 
     fetchGames()
-  }, [])
+  }, [spaceId])
 
   const filteredGames = games.filter((game) => {
     const categoryMatch = selectedCategory === "All Games" || game.category === selectedCategory

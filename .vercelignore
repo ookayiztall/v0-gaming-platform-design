@@ -1,0 +1,8 @@
+# Ignore conflicting admin route group files that may exist in git history
+app/(admin)/blog/page.tsx
+app/(admin)/dashboard/page.tsx
+
+# Standard ignores
+node_modules
+.git
+.next
