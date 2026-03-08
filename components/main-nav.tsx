@@ -9,23 +9,27 @@ import { useState, useEffect } from "react"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { createClient } from "@/lib/supabase/client"
 
-const mainNavItems = [
-  { href: "/dashboard", label: "Dashboard", icon: "🎮" },
-  { href: "/games", label: "Games", icon: "🕹️" },
-  { href: "/leaderboard", label: "Leaderboard", icon: "🏆" },
-  { href: "/chat", label: "Chat", icon: "💬" },
+const mainNavItems = (spaceSlug?: string) => [
+  { href: spaceSlug ? `/space/${spaceSlug}` : "/dashboard", label: "Dashboard", icon: "🎮" },
+  { href: spaceSlug ? `/space/${spaceSlug}/games` : "/games", label: "Games", icon: "🕹️" },
+  { href: spaceSlug ? `/space/${spaceSlug}/leaderboard` : "/leaderboard", label: "Leaderboard", icon: "🏆" },
+  { href: spaceSlug ? `/space/${spaceSlug}/chat` : "/chat", label: "Chat", icon: "💬" },
 ]
 
-const moreNavItems = [
-  { href: "/friends", label: "Friends", icon: "👥" },
-  { href: "/messages", label: "Messages", icon: "✉️" },
-  { href: "/tournaments", label: "Tournaments", icon: "🏅" },
-  { href: "/blog", label: "Blog", icon: "📝" },
-  { href: "/events", label: "Events", icon: "📅" },
+const moreNavItems = (spaceSlug?: string) => [
+  { href: spaceSlug ? `/space/${spaceSlug}/friends` : "/friends", label: "Friends", icon: "👥" },
+  { href: spaceSlug ? `/space/${spaceSlug}/messages` : "/messages", label: "Messages", icon: "✉️" },
+  { href: spaceSlug ? `/space/${spaceSlug}/tournaments` : "/tournaments", label: "Tournaments", icon: "🏅" },
+  { href: spaceSlug ? `/space/${spaceSlug}/blog` : "/blog", label: "Blog", icon: "📝" },
+  { href: spaceSlug ? `/space/${spaceSlug}/events` : "/events", label: "Events", icon: "📅" },
   { href: "/profile", label: "Profile", icon: "👤" },
 ]
 
-export function MainNav() {
+interface MainNavProps {
+  spaceSlug?: string
+}
+
+export function MainNav({ spaceSlug }: MainNavProps = {}) {
   const pathname = usePathname()
   const router = useRouter()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -67,7 +71,7 @@ export function MainNav() {
 
         {/* Desktop Navigation - Main items + More dropdown */}
         <div className="hidden md:flex items-center gap-1">
-          {mainNavItems.map((item) => (
+          {mainNavItems(spaceSlug).map((item) => (
             <Link key={item.href} href={item.href}>
               <Button
                 variant="ghost"
@@ -92,7 +96,7 @@ export function MainNav() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
-              {moreNavItems.map((item) => (
+              {moreNavItems(spaceSlug).map((item) => (
                 <DropdownMenuItem key={item.href} asChild>
                   <Link href={item.href} className="cursor-pointer">
                     <span className="mr-2">{item.icon}</span>

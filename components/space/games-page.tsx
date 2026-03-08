@@ -21,23 +21,23 @@ export function GamesPage({ spaceSlug }: GamesPageProps) {
 
   const fetchSpaceGames = async () => {
     try {
-      const { data: space } = await supabase
-        .from('spaces')
-        .select('id')
-        .eq('slug', spaceSlug)
-        .single();
+      // Fetch global game catalog (same for all spaces)
+      // Space-specific stats (reviews, high scores) come from other tables filtered by space_id
+      const { data, error } = await supabase
+        .from('games')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50);
 
-      if (space) {
-        const { data } = await supabase
-          .from('games')
-          .select('*')
-          .eq('space_id', space.id)
-          .order('created_at', { ascending: false });
-
+      if (error) {
+        console.error('[v0] Error fetching games:', error);
+        setGames([]);
+      } else {
         setGames(data || []);
       }
     } catch (error) {
       console.error('[v0] Error fetching games:', error);
+      setGames([]);
     } finally {
       setLoading(false);
     }

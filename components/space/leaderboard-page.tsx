@@ -13,6 +13,8 @@ interface LeaderboardEntry {
   points: number;
   streak: number;
   rank: number;
+  wins?: number;
+  level?: number;
 }
 
 interface LeaderboardPageProps {
@@ -22,33 +24,63 @@ interface LeaderboardPageProps {
 export function LeaderboardPage({ spaceSlug }: LeaderboardPageProps) {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [timeframe, setTimeframe] = useState<'weekly' | 'monthly' | 'all'>('weekly');
   const supabase = createBrowserClient();
 
   useEffect(() => {
     fetchLeaderboard();
-  }, [spaceSlug, timeframe]);
+  }, [spaceSlug]);
 
   const fetchLeaderboard = async () => {
     try {
-      const { data: space } = await supabase
+      const { data: space, error: spaceError } = await supabase
         .from('spaces')
         .select('id')
         .eq('slug', spaceSlug)
         .single();
 
-      if (space) {
-        const { data } = await supabase
-          .from('leaderboard_entries')
-          .select('*, user:profiles(username)')
-          .eq('space_id', space.id)
-          .eq('timeframe', timeframe)
-          .order('rank', { ascending: true });
+      if (spaceError || !space) {
+        console.error('[v0] Space not found:', spaceError);
+        setLoading(false);
+        return;
+      }
 
-        setLeaderboard(data || []);
+      // Fetch user stats scoped to this space, sorted by points
+      const { data: stats, error: statsError } = await supabase
+        .from('user_stats')
+        .select(`
+          id,
+          user_id,
+          points,
+          level,
+          rank,
+          total_wins,
+          win_streak,
+          profiles:user_id(username)
+        `)
+        .eq('space_id', space.id)
+        .order('points', { ascending: false })
+        .limit(100);
+
+      if (statsError) {
+        console.error('[v0] Error fetching leaderboard:', statsError);
+        setLeaderboard([]);
+      } else {
+        setLeaderboard(
+          stats?.map((stat: any, index: number) => ({
+            id: stat.id,
+            user_id: stat.user_id,
+            username: stat.profiles?.username || 'Unknown',
+            points: stat.points || 0,
+            streak: stat.win_streak || 0,
+            rank: index + 1,
+            wins: stat.total_wins || 0,
+            level: stat.level || 1,
+          })) || []
+        );
       }
     } catch (error) {
       console.error('[v0] Error fetching leaderboard:', error);
+      setLeaderboard([]);
     } finally {
       setLoading(false);
     }
@@ -74,20 +106,8 @@ export function LeaderboardPage({ spaceSlug }: LeaderboardPageProps) {
   return (
     <div className="p-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold">Leaderboard</h1>
-        <div className="flex gap-2 mt-4">
-          {(['weekly', 'monthly', 'all'] as const).map(tf => (
-            <button
-              key={tf}
-              onClick={() => setTimeframe(tf)}
-              className={`px-4 py-2 rounded ${
-                timeframe === tf ? 'bg-primary text-white' : 'bg-background border'
-              }`}
-            >
-              {tf.charAt(0).toUpperCase() + tf.slice(1)}
-            </button>
-          ))}
-        </div>
+        <h1 className="text-3xl font-bold text-balance">Space Leaderboard</h1>
+        <p className="text-muted-foreground mt-2">Top performers in this space</p>
       </div>
 
       <Card>
