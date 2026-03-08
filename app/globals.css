@@ -218,6 +218,10 @@
     text-shadow: 0 0 10px rgba(167, 107, 207, 0.6), 0 0 20px rgba(167, 107, 207, 0.4);
   }
 
+  .text-gradient {
+    @apply bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent;
+  }
+
   .glass {
     @apply bg-white/10 backdrop-blur-md border border-white/20;
   }

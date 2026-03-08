@@ -1,45 +1,27 @@
-import { redirect } from "next/navigation"
-import { createClient } from "@/lib/supabase/server"
+'use client';
 
-export default async function RootPage() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+import Navbar from '@/components/landing/navbar';
+import HeroSection from '@/components/landing/hero-section';
+import FeaturesSection from '@/components/landing/features-section';
+import HowItWorks from '@/components/landing/how-it-works';
+import GamesShowcase from '@/components/landing/games-showcase';
+import StatsSection from '@/components/landing/stats-section';
+import CommunitySection from '@/components/landing/community-section';
+import CTASection from '@/components/landing/cta-section';
+import Footer from '@/components/landing/footer';
 
-  if (!user) {
-    redirect("/login")
-  }
-
-  // Check if user has already completed onboarding
-  const { data: memberships } = await supabase
-    .from("space_memberships")
-    .select("space_id")
-    .eq("user_id", user.id)
-    .limit(1)
-
-  if (!memberships || memberships.length === 0) {
-    // User hasn't completed onboarding yet
-    redirect("/onboarding")
-  }
-
-  // Check if user selected public mode
-  const spaceType = user.user_metadata?.spaceType || "public"
-
-  if (spaceType === "public") {
-    redirect("/dashboard")
-  }
-
-  // Redirect to their first space
-  const { data: space } = await supabase
-    .from("spaces")
-    .select("slug")
-    .eq("id", memberships[0].space_id)
-    .single()
-
-  if (space) {
-    redirect(`/space/${space.slug}`)
-  }
-
-  redirect("/dashboard")
+export default function LandingPage() {
+  return (
+    <main className="min-h-screen w-full bg-background">
+      <Navbar />
+      <HeroSection />
+      <FeaturesSection />
+      <HowItWorks />
+      <GamesShowcase />
+      <StatsSection />
+      <CommunitySection />
+      <CTASection />
+      <Footer />
+    </main>
+  );
 }
