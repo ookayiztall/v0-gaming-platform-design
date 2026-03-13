@@ -156,20 +156,20 @@ export default function SpaceBillingPage() {
           </CardContent>
         </Card>
 
-        {/* Premium Plan Card */}
-        <Card className={space.plan_tier === 'paid' ? 'ring-2 ring-primary' : ''}>
+        {/* Standard Plan Card */}
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Zap className="w-5 h-5 text-yellow-500" />
-              Premium Plan
+              <Zap className="w-5 h-5 text-blue-500" />
+              Standard Plan
             </CardTitle>
-            <CardDescription>$5/month</CardDescription>
+            <CardDescription>$9.95/month</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <ul className="space-y-2 text-sm">
               <li className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-green-500" />
-                Up to 50 members
+                Up to 10 members
               </li>
               <li className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-green-500" />
@@ -178,6 +178,44 @@ export default function SpaceBillingPage() {
               <li className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-green-500" />
                 All free features
+              </li>
+              <li className="flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-green-500" />
+                Blog & Events
+              </li>
+            </ul>
+
+            {space.plan_tier === 'free' && isOwner && (
+              <Button onClick={handleUpgrade} className="w-full gap-2" disabled={checkoutLoading}>
+                <Zap className="w-4 h-4" />
+                {checkoutLoading ? 'Loading...' : 'Upgrade Now'}
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Premium Plan Card */}
+        <Card className={space.plan_tier === 'paid' ? 'ring-2 ring-primary' : ''}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Zap className="w-5 h-5 text-yellow-500" />
+              Premium Plan
+            </CardTitle>
+            <CardDescription>$19.95/month</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <ul className="space-y-2 text-sm">
+              <li className="flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-green-500" />
+                Up to 20 members
+              </li>
+              <li className="flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-green-500" />
+                Unlimited invites
+              </li>
+              <li className="flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-green-500" />
+                All Standard features
               </li>
               <li className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-green-500" />
