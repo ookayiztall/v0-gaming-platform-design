@@ -19,7 +19,7 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [spaceType, setSpaceType] = useState<"private" | "public">("private")
-  const [planTier, setPlanTier] = useState<"free" | "paid">("free")
+  const [planTier, setPlanTier] = useState<"free" | "standard" | "premium">("free")
   const [formData, setFormData] = useState({
     username: "",
     email: "",
@@ -175,21 +175,28 @@ export default function RegisterPage() {
 
         {/* Plan Selection - Only for Private Space */}
         {spaceType === "private" && (
-          <div className="space-y-3 p-4 rounded-lg bg-primary/5 border border-primary/20">
-            <p className="text-sm font-medium text-foreground">Choose a Plan</p>
-            <RadioGroup value={planTier} onValueChange={(value) => setPlanTier(value as "free" | "paid")}>
-              <div className="flex items-center space-x-3 p-2 rounded cursor-pointer hover:bg-primary/10">
+          <div className="space-y-4 p-4 rounded-lg bg-primary/5 border border-primary/20">
+            <p className="text-sm font-medium text-foreground">Choose Your Plan</p>
+            <RadioGroup value={planTier} onValueChange={(value) => setPlanTier(value as "free" | "standard" | "premium")}>
+              <div className="flex items-center space-x-3 p-3 rounded cursor-pointer hover:bg-primary/10 border border-transparent hover:border-primary/30">
                 <RadioGroupItem value="free" id="free" />
                 <label htmlFor="free" className="cursor-pointer flex-1">
                   <p className="font-medium text-sm">Free Plan</p>
-                  <p className="text-xs text-muted-foreground">Up to 5 members</p>
+                  <p className="text-xs text-muted-foreground">Up to 5 members • Perfect for testing</p>
                 </label>
               </div>
-              <div className="flex items-center space-x-3 p-2 rounded cursor-pointer hover:bg-primary/10">
-                <RadioGroupItem value="paid" id="paid" />
-                <label htmlFor="paid" className="cursor-pointer flex-1">
+              <div className="flex items-center space-x-3 p-3 rounded cursor-pointer hover:bg-primary/10 border border-transparent hover:border-primary/30">
+                <RadioGroupItem value="standard" id="standard" />
+                <label htmlFor="standard" className="cursor-pointer flex-1">
+                  <p className="font-medium text-sm">Standard Plan</p>
+                  <p className="text-xs text-muted-foreground">Up to 10 members • $9.95/month</p>
+                </label>
+              </div>
+              <div className="flex items-center space-x-3 p-3 rounded cursor-pointer hover:bg-primary/10 border border-transparent hover:border-primary/30">
+                <RadioGroupItem value="premium" id="premium" />
+                <label htmlFor="premium" className="cursor-pointer flex-1">
                   <p className="font-medium text-sm">Premium Plan</p>
-                  <p className="text-xs text-muted-foreground">Unlimited members - $9.99/month</p>
+                  <p className="text-xs text-muted-foreground">Up to 20 members • $19.95/month</p>
                 </label>
               </div>
             </RadioGroup>

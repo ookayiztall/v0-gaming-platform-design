@@ -20,7 +20,7 @@ interface SpaceAdmin {
   id: string
   name: string
   slug: string
-  plan_tier: "free" | "paid"
+  plan_tier: "free" | "standard" | "premium"
   owner_id: string
   invite_limit: number
   owner_username: string
@@ -53,8 +53,10 @@ export default function SuperAdminPage() {
   const [stats, setStats] = useState({
     totalSpaces: 0,
     totalUsers: 0,
-    paidSpaces: 0,
+    standardSpaces: 0,
+    premiumSpaces: 0,
     freeSpaces: 0,
+    monthlyRevenue: 0,
   })
 
   useEffect(() => {
@@ -134,11 +136,17 @@ export default function SuperAdminPage() {
       setSpaces(spacesWithCounts)
 
       // Calculate stats
+      const standardSpaces = spacesWithCounts.filter(s => s.plan_tier === "standard").length
+      const premiumSpaces = spacesWithCounts.filter(s => s.plan_tier === "premium").length
+      const monthlyRevenue = (standardSpaces * 9.95) + (premiumSpaces * 19.95)
+      
       setStats({
         totalSpaces: spacesWithCounts.length,
-        paidSpaces: spacesWithCounts.filter(s => s.plan_tier === "paid").length,
+        standardSpaces,
+        premiumSpaces,
         freeSpaces: spacesWithCounts.filter(s => s.plan_tier === "free").length,
         totalUsers: spacesWithCounts.reduce((sum, s) => sum + s.member_count, 0),
+        monthlyRevenue,
       })
     } catch (error) {
       console.error("Error loading spaces:", error)
@@ -219,7 +227,7 @@ export default function SuperAdminPage() {
       </div>
 
       {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -235,15 +243,38 @@ export default function SuperAdminPage() {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-accent" />
-              Paid Spaces
+              <TrendingUp className="w-4 h-4 text-green-500" />
+              Standard
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-accent">{stats.paidSpaces}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {stats.totalSpaces > 0 ? ((stats.paidSpaces / stats.totalSpaces) * 100).toFixed(1) : 0}% conversion
-            </p>
+            <div className="text-2xl font-bold text-green-500">{stats.standardSpaces}</div>
+            <p className="text-xs text-muted-foreground mt-1">$9.95/month</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-accent" />
+              Premium
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-accent">{stats.premiumSpaces}</div>
+            <p className="text-xs text-muted-foreground mt-1">$19.95/month</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Building2 className="w-4 h-4" />
+              Free Spaces
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.freeSpaces}</div>
           </CardContent>
         </Card>
 
@@ -262,12 +293,13 @@ export default function SuperAdminPage() {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Building2 className="w-4 h-4" />
-              Free Spaces
+              <TrendingUp className="w-4 h-4 text-blue-500" />
+              Monthly Revenue
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.freeSpaces}</div>
+            <div className="text-2xl font-bold text-blue-500">${stats.monthlyRevenue.toFixed(2)}</div>
+            <p className="text-xs text-muted-foreground mt-1">Estimated</p>
           </CardContent>
         </Card>
       </div>
@@ -332,11 +364,13 @@ export default function SuperAdminPage() {
                           </td>
                           <td className="py-3 px-4">
                             <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                              space.plan_tier === "paid" 
+                              space.plan_tier === "premium" 
                                 ? "bg-accent/20 text-accent" 
+                                : space.plan_tier === "standard"
+                                ? "bg-green-500/20 text-green-600"
                                 : "bg-primary/20 text-primary"
                             }`}>
-                              {space.plan_tier === "paid" ? "Premium" : "Free"}
+                              {space.plan_tier === "premium" ? "Premium (20)" : space.plan_tier === "standard" ? "Standard (10)" : "Free (5)"}
                             </span>
                           </td>
                           <td className="py-3 px-4">
@@ -481,34 +515,63 @@ export default function SuperAdminPage() {
               <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
                 <p className="text-sm font-medium mb-2">Free Plan</p>
                 <ul className="text-xs text-muted-foreground space-y-1 mb-4">
-                  <li>✓ Up to 5 invites</li>
+                  <li>✓ Up to 5 members</li>
                   <li>✓ Private chat and games</li>
                   <li>✓ Space leaderboard</li>
+                  <li>✓ Blog & Events</li>
                 </ul>
-                <p className="text-sm font-medium">Price: Free</p>
+                <p className="text-sm font-medium">Price: Free Forever</p>
+              </div>
+
+              <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/20">
+                <p className="text-sm font-medium mb-2">Standard Plan</p>
+                <ul className="text-xs text-muted-foreground space-y-1 mb-4">
+                  <li>✓ Up to 10 members</li>
+                  <li>✓ Everything in Free</li>
+                  <li>✓ Advanced leaderboards</li>
+                  <li>✓ Voice chat</li>
+                  <li>✓ Priority support</li>
+                </ul>
+                <p className="text-sm font-medium">Price: $9.95/month</p>
               </div>
 
               <div className="p-4 rounded-lg bg-accent/5 border border-accent/20">
                 <p className="text-sm font-medium mb-2">Premium Plan</p>
                 <ul className="text-xs text-muted-foreground space-y-1 mb-4">
-                  <li>✓ Unlimited invites</li>
-                  <li>✓ Everything in Free</li>
-                  <li>✓ Advanced features</li>
-                  <li>✓ Priority support</li>
+                  <li>✓ Up to 20 members</li>
+                  <li>✓ Everything in Standard</li>
+                  <li>✓ Custom branding</li>
+                  <li>✓ Analytics dashboard</li>
+                  <li>✓ 24/7 priority support</li>
                 </ul>
-                <p className="text-sm font-medium">Price: $9.99/month</p>
+                <p className="text-sm font-medium">Price: $19.95/month</p>
               </div>
 
               <div className="p-4 rounded-lg bg-muted/50 border border-border/40">
                 <p className="font-medium flex items-center gap-2 mb-2">
                   <AlertCircle className="w-4 h-4" />
-                  Stripe Configuration
+                  Stripe Payment Setup
+                </p>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Configure Stripe keys for payment processing. Each space admin can link their own Stripe account for payments, and the super admin receives all revenue.
+                </p>
+                <div className="space-y-2 text-xs text-muted-foreground">
+                  <p>Required env vars:</p>
+                  <ul className="list-disc list-inside space-y-1 ml-2">
+                    <li>NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY</li>
+                    <li>STRIPE_SECRET_KEY</li>
+                    <li>STRIPE_WEBHOOK_SECRET</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-lg bg-muted/50 border border-border/40">
+                <p className="font-medium flex items-center gap-2 mb-2">
+                  <AlertCircle className="w-4 h-4" />
+                  Subscription Management
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Price IDs and webhook secrets are configured in environment variables for security.
-                </p>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Required env vars: STRIPE_PRICE_ID_MONTHLY, STRIPE_WEBHOOK_SECRET
+                  Cancelled subscriptions have a 14-day grace period. Spaces get daily reminders and after 14 days without payment renewal, they are deactivated. All member data is retained for 30 days before cleanup.
                 </p>
               </div>
             </CardContent>

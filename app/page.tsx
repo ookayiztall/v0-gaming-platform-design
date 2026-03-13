@@ -7,6 +7,7 @@ import HowItWorks from '@/components/landing/how-it-works';
 import GamesShowcase from '@/components/landing/games-showcase';
 import StatsSection from '@/components/landing/stats-section';
 import CommunitySection from '@/components/landing/community-section';
+import PricingSection from '@/components/landing/pricing-section';
 import CTASection from '@/components/landing/cta-section';
 import Footer from '@/components/landing/footer';
 
@@ -19,6 +20,7 @@ export default function LandingPage() {
       <HowItWorks />
       <GamesShowcase />
       <StatsSection />
+      <PricingSection />
       <CommunitySection />
       <CTASection />
       <Footer />
