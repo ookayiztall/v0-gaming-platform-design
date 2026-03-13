@@ -24,6 +24,8 @@ interface LeaderboardPageProps {
 export function LeaderboardPage({ spaceSlug }: LeaderboardPageProps) {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isPrivateSpace, setIsPrivateSpace] = useState(false);
+  const [userIsMember, setUserIsMember] = useState(false);
   const supabase = createBrowserClient();
 
   useEffect(() => {
@@ -34,7 +36,7 @@ export function LeaderboardPage({ spaceSlug }: LeaderboardPageProps) {
     try {
       const { data: space, error: spaceError } = await supabase
         .from('spaces')
-        .select('id')
+        .select('id, is_public')
         .eq('slug', spaceSlug)
         .single();
 
@@ -42,6 +44,25 @@ export function LeaderboardPage({ spaceSlug }: LeaderboardPageProps) {
         console.error('[v0] Space not found:', spaceError);
         setLoading(false);
         return;
+      }
+
+      setIsPrivateSpace(!space.is_public);
+
+      // Check if current user is a member (for private spaces)
+      if (!space.is_public) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: membership } = await supabase
+            .from('space_memberships')
+            .select('id')
+            .eq('space_id', space.id)
+            .eq('user_id', user.id)
+            .single();
+          
+          setUserIsMember(!!membership);
+        }
+      } else {
+        setUserIsMember(true); // Public spaces are visible to all
       }
 
       // Fetch user stats scoped to this space, sorted by points
@@ -103,11 +124,29 @@ export function LeaderboardPage({ spaceSlug }: LeaderboardPageProps) {
     return <div className="p-8">Loading leaderboard...</div>;
   }
 
+  // Private space privacy check
+  if (isPrivateSpace && !userIsMember) {
+    return (
+      <div className="p-8">
+        <Card className="border-amber-200/50 bg-amber-50/50 dark:bg-amber-950/20 dark:border-amber-800/50">
+          <CardContent className="pt-6">
+            <p className="text-center text-muted-foreground">
+              This is a private space. Only members can view the leaderboard.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="p-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-balance">Space Leaderboard</h1>
-        <p className="text-muted-foreground mt-2">Top performers in this space</p>
+        <p className="text-muted-foreground mt-2">
+          {isPrivateSpace ? 'Top performers in this private space' : 'Top performers across all spaces'}
+        </p>
+        {isPrivateSpace && <Badge className="mt-2">Private Space</Badge>}
       </div>
 
       <Card>

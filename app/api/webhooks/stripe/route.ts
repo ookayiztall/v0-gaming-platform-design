@@ -38,25 +38,36 @@ export async function POST(req: Request) {
           .single();
 
         if (existingSubData) {
+          // Determine plan tier based on subscription amount
+          const priceId = subscription.items?.data?.[0]?.price?.id
+          let planTier: 'standard' | 'premium' = 'standard'
+          let inviteLimit = 10
+
+          // You'd need to configure these price IDs in environment variables
+          if (priceId === process.env.STRIPE_PRICE_ID_PREMIUM) {
+            planTier = 'premium'
+            inviteLimit = 20
+          }
+
           // Update existing subscription
           await supabase
             .from('space_subscriptions')
             .update({
               stripe_subscription_id: subscription.id,
-              status: subscription.status === 'active' ? 'active' : 'paused',
+              status: subscription.status === 'active' ? 'active' : subscription.status === 'paused' ? 'paused' : 'cancelled',
               period_start: new Date(subscription.current_period_start * 1000).toISOString(),
               period_end: new Date(subscription.current_period_end * 1000).toISOString(),
               updated_at: new Date().toISOString(),
             })
             .eq('space_id', existingSubData.space_id);
 
-          // Update space plan tier
+          // Update space plan tier if subscription is active
           if (subscription.status === 'active') {
             await supabase
               .from('spaces')
               .update({
-                plan_tier: 'paid',
-                invite_limit: 50,
+                plan_tier: planTier,
+                invite_limit: inviteLimit,
               })
               .eq('id', existingSubData.space_id);
           }
@@ -75,41 +86,21 @@ export async function POST(req: Request) {
           .single();
 
         if (subData) {
+          // Mark subscription as cancelled (enters 14-day grace period)
+          const graceEndDate = new Date()
+          graceEndDate.setDate(graceEndDate.getDate() + 14)
+
           await supabase
             .from('space_subscriptions')
             .update({
-              status: 'canceled',
+              status: 'cancelled',
               updated_at: new Date().toISOString(),
             })
             .eq('space_id', subData.space_id);
 
-          // Revert space to free plan
-          const { data: space } = await supabase
-            .from('spaces')
-            .select('id')
-            .eq('id', subData.space_id)
-            .single();
-
-          if (space) {
-            // Get member count
-            const { data: members } = await supabase
-              .from('space_memberships')
-              .select('id')
-              .eq('space_id', space.id);
-
-            const memberCount = members?.length || 0;
-
-            // If over free limit, just block new invites (existing members stay)
-            const newInviteLimit = Math.max(5, memberCount);
-
-            await supabase
-              .from('spaces')
-              .update({
-                plan_tier: 'free',
-                invite_limit: newInviteLimit,
-              })
-              .eq('id', space.id);
-          }
+          // Keep space active during grace period - don't change plan tier yet
+          // After 14 days without renewal, a background job will revert to free plan
+          console.log(`[Stripe Webhook] Subscription cancelled for space ${subData.space_id}. Grace period until ${graceEndDate.toISOString()}`);
         }
         break;
       }
