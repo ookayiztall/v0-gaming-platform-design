@@ -1,12 +1,13 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { createBrowserClient } from "@/lib/supabase/client"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Trophy, Calendar, Users, Medal } from "lucide-react"
+import { Trophy, Calendar, Users, Medal, Plus } from "lucide-react"
 import Link from "next/link"
 
 interface Tournament {
@@ -28,9 +29,11 @@ interface Tournament {
 }
 
 export default function TournamentsPage() {
+  const router = useRouter()
   const [tournaments, setTournaments] = useState<Tournament[]>([])
   const [currentUserId, setCurrentUserId] = useState("")
   const [filter, setFilter] = useState("all")
+  const [isAdmin, setIsAdmin] = useState(false)
   const supabase = createBrowserClient()
 
   useEffect(() => {
@@ -42,7 +45,18 @@ export default function TournamentsPage() {
     const {
       data: { user },
     } = await supabase.auth.getUser()
-    if (user) setCurrentUserId(user.id)
+    if (user) {
+      setCurrentUserId(user.id)
+      
+      // Check if user is admin
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("is_admin")
+        .eq("user_id", user.id)
+        .single()
+      
+      setIsAdmin(profile?.is_admin || false)
+    }
   }
 
   async function fetchTournaments() {
@@ -127,11 +141,19 @@ export default function TournamentsPage() {
 
   return (
     <div className="container mx-auto py-8 px-4">
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold text-balance mb-2">
-          <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">Tournaments</span>
-        </h1>
-        <p className="text-muted-foreground">Compete in exciting gaming tournaments and win prizes</p>
+      <div className="mb-8 flex items-start justify-between">
+        <div>
+          <h1 className="text-4xl font-bold text-balance mb-2">
+            <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">Tournaments</span>
+          </h1>
+          <p className="text-muted-foreground">Compete in exciting gaming tournaments and win prizes</p>
+        </div>
+        {isAdmin && (
+          <Button onClick={() => router.push("/tournaments/create")} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Create Tournament
+          </Button>
+        )}
       </div>
 
       <Tabs defaultValue="all" className="w-full" onValueChange={setFilter}>
