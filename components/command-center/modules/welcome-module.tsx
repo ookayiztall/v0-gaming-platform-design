@@ -5,11 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Sparkles, GamepadIcon, MessageCircle, Music } from 'lucide-react';
 
 interface WelcomeModuleProps {
-  user?: any;
-  space?: any;
+  spaceId?: string;
+  isPrivateSpace: boolean;
 }
 
-export default function WelcomeModule({ user, space }: WelcomeModuleProps) {
+export default function WelcomeModule({ spaceId, isPrivateSpace }: WelcomeModuleProps) {
   return (
     <div className="p-8 space-y-8">
       {/* Welcome Header */}
@@ -55,24 +55,26 @@ export default function WelcomeModule({ user, space }: WelcomeModuleProps) {
       </div>
 
       {/* Space Info */}
-      {space && (
-        <div className="max-w-2xl mx-auto">
-          <Card className="p-6 border-border/50 bg-card/30">
-            <h3 className="font-semibold text-foreground mb-2">Current Space</h3>
-            <p className="text-sm text-muted-foreground mb-4">{space.name}</p>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-xs text-muted-foreground">Type</p>
-                <p className="font-semibold text-foreground">{space.is_public ? 'Public' : 'Private'}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Plan</p>
-                <p className="font-semibold text-foreground capitalize">{space.plan_tier}</p>
-              </div>
+      <div className="max-w-2xl mx-auto">
+        <Card className="p-6 border-border/50 bg-card/30">
+          <h3 className="font-semibold text-foreground mb-2">You're in {isPrivateSpace ? 'a Private' : 'the Public'} Space</h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            {isPrivateSpace 
+              ? 'This is a private community space with restricted access. Only invited members can join.'
+              : 'This is the public gaming space where everyone can participate and connect.'}
+          </p>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-xs text-muted-foreground">Type</p>
+              <p className="font-semibold text-foreground">{isPrivateSpace ? 'Private' : 'Public'}</p>
             </div>
-          </Card>
-        </div>
-      )}
+            <div>
+              <p className="text-xs text-muted-foreground">Visibility</p>
+              <p className="font-semibold text-foreground">{isPrivateSpace ? 'Members Only' : 'Global'}</p>
+            </div>
+          </div>
+        </Card>
+      </div>
 
       {/* Feature Highlights */}
       <div className="max-w-2xl mx-auto">
