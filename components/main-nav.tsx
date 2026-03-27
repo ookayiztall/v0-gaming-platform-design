@@ -11,6 +11,7 @@ import { createClient } from "@/lib/supabase/client"
 
 const mainNavItems = (spaceSlug?: string) => [
   { href: spaceSlug ? `/space/${spaceSlug}` : "/dashboard", label: "Dashboard", icon: "🎮" },
+  { href: spaceSlug ? `/space/${spaceSlug}/command-center` : "/command-center", label: "Command Center", icon: "⌘" },
   { href: spaceSlug ? `/space/${spaceSlug}/games` : "/games", label: "Games", icon: "🕹️" },
   { href: spaceSlug ? `/space/${spaceSlug}/leaderboard` : "/leaderboard", label: "Leaderboard", icon: "🏆" },
   { href: spaceSlug ? `/space/${spaceSlug}/chat` : "/chat", label: "Chat", icon: "💬" },
