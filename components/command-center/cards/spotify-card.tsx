@@ -40,24 +40,31 @@ export default function SpotifyCard() {
 
   useEffect(() => {
     setMounted(true);
+    
+    // Check for callback from Spotify auth first
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('spotify_connected') === 'true') {
+      setIsConnected(true);
+      window.history.replaceState({}, '', window.location.pathname);
+      return;
+    }
+
     // Check if user has Spotify connected
     const checkConnection = async () => {
       try {
         const response = await fetch('/api/spotify/current-track');
-        setIsConnected(response.ok);
-      } catch {
+        if (response.ok) {
+          setIsConnected(true);
+        } else {
+          setIsConnected(false);
+        }
+      } catch (err) {
+        console.error('[v0] Spotify connection check failed:', err);
         setIsConnected(false);
       }
     };
 
     checkConnection();
-
-    // Listen for query params (callback from Spotify auth)
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('spotify_connected') === 'true') {
-      setIsConnected(true);
-      window.history.replaceState({}, '', window.location.pathname);
-    }
   }, []);
 
   const handleSpotifyLogin = async () => {
