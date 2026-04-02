@@ -9,12 +9,26 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const code = searchParams.get('code');
   const state = searchParams.get('state');
+  const error = searchParams.get('error');
+
+  console.log('[v0] Spotify callback received:', { hasCode: !!code, hasError: !!error, error });
+
+  if (error) {
+    console.error('[v0] Spotify auth error:', error);
+    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/command-center?error=spotify_auth_failed`);
+  }
 
   if (!code) {
+    console.error('[v0] No authorization code received from Spotify');
     return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/command-center?error=spotify_auth_failed`);
   }
 
   try {
+    // Validate credentials
+    if (!SPOTIFY_CLIENT_ID || !SPOTIFY_CLIENT_SECRET) {
+      throw new Error('Missing Spotify credentials');
+    }
+
     // Exchange code for access token
     const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
       method: 'POST',
@@ -29,9 +43,16 @@ export async function GET(request: NextRequest) {
       }).toString(),
     });
 
+    if (!tokenResponse.ok) {
+      const errorText = await tokenResponse.text();
+      console.error('[v0] Spotify token exchange failed:', tokenResponse.status, errorText);
+      throw new Error(`Token exchange failed: ${tokenResponse.status}`);
+    }
+
     const tokenData = await tokenResponse.json();
 
     if (!tokenData.access_token) {
+      console.error('[v0] No access token in response:', tokenData);
       throw new Error('Failed to get access token');
     }
 
@@ -42,7 +63,14 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    if (!profileResponse.ok) {
+      const errorText = await profileResponse.text();
+      console.error('[v0] Spotify profile fetch failed:', profileResponse.status, errorText);
+      throw new Error(`Profile fetch failed: ${profileResponse.status}`);
+    }
+
     const profile = await profileResponse.json();
+    console.log('[v0] Spotify profile fetched:', { id: profile.id, displayName: profile.display_name });
 
     // Save to database
     const supabase = createClient();
@@ -53,6 +81,8 @@ export async function GET(request: NextRequest) {
     if (!user) {
       throw new Error('User not authenticated');
     }
+
+    console.log('[v0] Authenticated user:', { userId: user.id });
 
     // Upsert Spotify integration
     const expiresAtDate = new Date(Date.now() + tokenData.expires_in * 1000).toISOString();
@@ -73,9 +103,15 @@ export async function GET(request: NextRequest) {
     );
 
     if (error) {
-      console.error('[v0] Error saving Spotify integration:', error);
+      console.error('[v0] Error saving Spotify integration:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+      });
       throw error;
     }
+
+    console.log('[v0] Spotify integration saved successfully');
 
     // Redirect back to command center
     return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/command-center?spotify_connected=true`);
