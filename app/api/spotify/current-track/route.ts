@@ -1,6 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
+// Helper function to retry with exponential backoff
+async function getSpotifyIntegration(supabase: any, userId: string, retries = 3) {
+  for (let attempt = 0; attempt < retries; attempt++) {
+    const { data: integration, error } = await supabase
+      .from('spotify_integrations')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+
+    if (integration) {
+      console.log('[v0] Spotify integration found on attempt', attempt + 1);
+      return { integration, error: null };
+    }
+
+    // Only retry on "not found" errors, not other errors
+    if (error && error.code === 'PGRST116') {
+      if (attempt < retries - 1) {
+        const delay = Math.pow(2, attempt) * 100; // 100ms, 200ms, 400ms
+        console.log(`[v0] Spotify integration not found, retrying in ${delay}ms (attempt ${attempt + 1}/${retries})`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+    }
+
+    return { integration, error };
+  }
+
+  return { integration: null, error: null };
+}
+
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
@@ -15,12 +45,8 @@ export async function GET(request: NextRequest) {
 
     console.log('[v0] Fetching Spotify integration for user:', user.id);
 
-    // Get Spotify integration
-    const { data: integration, error } = await supabase
-      .from('spotify_integrations')
-      .select('*')
-      .eq('user_id', user.id)
-      .single();
+    // Get Spotify integration with retry logic
+    const { integration, error } = await getSpotifyIntegration(supabase, user.id);
 
     if (error) {
       console.error('[v0] Database error fetching Spotify integration:', {
@@ -29,9 +55,12 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    if (error || !integration) {
+    if (!integration) {
       console.error('[v0] Spotify integration not found for user:', user.id);
-      return NextResponse.json({ error: 'Spotify not connected' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Spotify not connected', type: 'not_connected' },
+        { status: 404 }
+      );
     }
 
     console.log('[v0] Spotify integration found, checking token expiry');
