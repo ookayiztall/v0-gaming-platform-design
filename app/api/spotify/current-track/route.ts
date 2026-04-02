@@ -3,14 +3,17 @@ import { createClient } from '@/lib/supabase/server';
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
     if (!user) {
+      console.error('[v0] No user found in Spotify track endpoint');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    console.log('[v0] Fetching Spotify integration for user:', user.id);
 
     // Get Spotify integration
     const { data: integration, error } = await supabase
@@ -19,13 +22,27 @@ export async function GET(request: NextRequest) {
       .eq('user_id', user.id)
       .single();
 
+    if (error) {
+      console.error('[v0] Database error fetching Spotify integration:', {
+        message: error.message,
+        code: error.code,
+      });
+    }
+
     if (error || !integration) {
+      console.error('[v0] Spotify integration not found for user:', user.id);
       return NextResponse.json({ error: 'Spotify not connected' }, { status: 404 });
     }
 
+    console.log('[v0] Spotify integration found, checking token expiry');
+
     // Check if token is expired
     const expiresAt = new Date(integration.expires_at);
-    if (expiresAt < new Date()) {
+    const now = new Date();
+    console.log('[v0] Token expiry check:', { expiresAt: expiresAt.toISOString(), now: now.toISOString(), isExpired: expiresAt < now });
+    
+    if (expiresAt < now) {
+      console.log('[v0] Token expired, refreshing...');
       // Token expired, refresh it
       const refreshResponse = await fetch('https://accounts.spotify.com/api/token', {
         method: 'POST',
@@ -64,11 +81,14 @@ export async function GET(request: NextRequest) {
     }
 
     // Get currently playing track
+    console.log('[v0] Fetching currently playing track...');
     const trackResponse = await fetch('https://api.spotify.com/v1/me/player/currently-playing', {
       headers: {
         Authorization: `Bearer ${integration.access_token}`,
       },
     });
+
+    console.log('[v0] Track response status:', trackResponse.status);
 
     if (trackResponse.status === 204) {
       const profile = {
@@ -92,7 +112,15 @@ export async function GET(request: NextRequest) {
     };
     return NextResponse.json({ track, profile });
   } catch (error) {
-    console.error('[v0] Spotify track error:', error);
-    return NextResponse.json({ error: 'Failed to get current track' }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('[v0] Spotify track error:', {
+      message: errorMessage,
+      type: error instanceof Error ? error.constructor.name : typeof error,
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+    return NextResponse.json(
+      { error: 'Failed to get current track', details: errorMessage },
+      { status: 500 }
+    );
   }
 }
