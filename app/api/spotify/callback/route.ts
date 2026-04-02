@@ -55,14 +55,19 @@ export async function GET(request: NextRequest) {
     }
 
     // Upsert Spotify integration
+    const expiresAtDate = new Date(Date.now() + tokenData.expires_in * 1000).toISOString();
+    const profileImage = profile.images?.[0]?.url || null;
+    
     const { error } = await supabase.from('spotify_integrations').upsert(
       {
         user_id: user.id,
         spotify_user_id: profile.id,
+        display_name: profile.display_name,
+        profile_image_url: profileImage,
         access_token: tokenData.access_token,
         refresh_token: tokenData.refresh_token,
-        expires_at: new Date(Date.now() + tokenData.expires_in * 1000),
-        spotify_profile: profile,
+        expires_at: expiresAtDate,
+        connected_at: new Date().toISOString(),
       },
       { onConflict: 'user_id' }
     );

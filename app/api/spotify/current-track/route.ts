@@ -46,10 +46,19 @@ export async function GET(request: NextRequest) {
       }
 
       // Update token in database
-      await supabase.from('spotify_integrations').update({
-        access_token: refreshData.access_token,
-        expires_at: new Date(Date.now() + refreshData.expires_in * 1000),
-      });
+      const expiresAtDate = new Date(Date.now() + refreshData.expires_in * 1000).toISOString();
+      const { error: updateError } = await supabase
+        .from('spotify_integrations')
+        .update({
+          access_token: refreshData.access_token,
+          expires_at: expiresAtDate,
+        })
+        .eq('user_id', user.id);
+
+      if (updateError) {
+        console.error('[v0] Error updating Spotify token:', updateError);
+        throw updateError;
+      }
 
       integration.access_token = refreshData.access_token;
     }
@@ -62,11 +71,26 @@ export async function GET(request: NextRequest) {
     });
 
     if (trackResponse.status === 204) {
-      return NextResponse.json({ track: null });
+      const profile = {
+        display_name: integration.display_name,
+        profile_image_url: integration.profile_image_url,
+        spotify_user_id: integration.spotify_user_id,
+      };
+      return NextResponse.json({ track: null, profile });
+    }
+
+    if (!trackResponse.ok) {
+      console.error('[v0] Spotify API error:', trackResponse.status, await trackResponse.text());
+      throw new Error(`Spotify API error: ${trackResponse.status}`);
     }
 
     const track = await trackResponse.json();
-    return NextResponse.json({ track, profile: integration.spotify_profile });
+    const profile = {
+      display_name: integration.display_name,
+      profile_image_url: integration.profile_image_url,
+      spotify_user_id: integration.spotify_user_id,
+    };
+    return NextResponse.json({ track, profile });
   } catch (error) {
     console.error('[v0] Spotify track error:', error);
     return NextResponse.json({ error: 'Failed to get current track' }, { status: 500 });
