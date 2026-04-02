@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
     console.log('[v0] Spotify profile fetched:', { id: profile.id, displayName: profile.display_name });
 
     // Save to database
-    const supabase = createClient();
+    const supabase = await createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
