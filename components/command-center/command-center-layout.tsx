@@ -6,11 +6,11 @@ import ChatRoomsCard from './cards/chat-rooms-card';
 import GamesCard from './cards/games-card';
 import TournamentsCard from './cards/tournaments-card';
 import FriendsCard from './cards/friends-card';
-import SpotifyCard from './cards/spotify-card';
+import YouTubeMusicCard from './cards/youtube-music-card';
 import LeaderboardCard from './cards/leaderboard-card';
 import CenterViewport from './center-viewport';
 
-type ViewportModule = 'welcome' | 'chat' | 'games' | 'tournaments';
+type ViewportModule = 'welcome' | 'chat' | 'games' | 'tournaments' | 'youtube-music';
 
 interface CommandCenterLayoutProps {
   spaceId?: string;
@@ -88,10 +88,10 @@ export default function CommandCenterLayout({
             <FriendsCard />
           </div>
 
-          {/* Spotify */}
+          {/* YouTube Music */}
           <div>
-            <h2 className="text-xs font-bold text-primary uppercase tracking-wider mb-3">Spotify</h2>
-            <SpotifyCard />
+            <h2 className="text-xs font-bold text-primary uppercase tracking-wider mb-3">YouTube Music</h2>
+            <YouTubeMusicCard onExpandClick={() => setActiveModule('youtube-music')} />
           </div>
 
           {/* Leaderboard */}

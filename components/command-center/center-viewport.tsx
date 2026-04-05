@@ -5,7 +5,7 @@ import { Suspense } from 'react';
 import { Loader } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 
-type ViewportModule = 'welcome' | 'chat' | 'games' | 'tournaments';
+type ViewportModule = 'welcome' | 'chat' | 'games' | 'tournaments' | 'youtube-music';
 
 // Dynamically import modules
 const WelcomeModule = dynamic(() => import('./modules/welcome-module'), {
@@ -21,6 +21,10 @@ const GamesModule = dynamic(() => import('./modules/games-module'), {
 });
 
 const TournamentsModule = dynamic(() => import('./modules/tournaments-module'), {
+  loading: () => <ModuleLoading />,
+});
+
+const YouTubeMusicModule = dynamic(() => import('./modules/youtube-music-module'), {
   loading: () => <ModuleLoading />,
 });
 
@@ -63,6 +67,9 @@ export default function CenterViewport({
           )}
           {activeModule === 'tournaments' && (
             <TournamentsModule spaceId={spaceId} />
+          )}
+          {activeModule === 'youtube-music' && (
+            <YouTubeMusicModule />
           )}
         </Suspense>
       </div>
