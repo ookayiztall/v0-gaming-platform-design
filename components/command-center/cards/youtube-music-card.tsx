@@ -21,7 +21,7 @@ export default function YouTubeMusicCard({ onExpandClick }: YouTubeMusicCardProp
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const { playbackState, play, pause } = useYoutubeMusicPlayback();
+  const { playbackState } = useYoutubeMusicPlayback();
 
   useEffect(() => {
     setMounted(true);
@@ -29,14 +29,15 @@ export default function YouTubeMusicCard({ onExpandClick }: YouTubeMusicCardProp
     // Listen for query params (callback from YouTube auth)
     const params = new URLSearchParams(window.location.search);
     if (params.get('youtube_connected') === 'true') {
-      console.log('[v0] YouTube connected via callback');
+      console.log('[v0] YouTube connected via callback, waiting for session to sync...');
       setIsConnected(true);
       window.history.replaceState({}, '', window.location.pathname);
       
-      // Wait for browser to sync with server before checking playlists
+      // Wait a bit longer for database to sync
       setTimeout(() => {
+        console.log('[v0] Checking connection after OAuth callback');
         checkConnection();
-      }, 500);
+      }, 1000);
       return;
     }
 
@@ -50,7 +51,14 @@ export default function YouTubeMusicCard({ onExpandClick }: YouTubeMusicCardProp
       const response = await fetch('/api/youtube-music/playlists');
       const isConnected = response.ok;
       console.log('[v0] YouTube Music connection check:', { status: response.status, isConnected });
-      setIsConnected(isConnected);
+      
+      if (response.ok) {
+        console.log('[v0] YouTube Music is connected!');
+        setIsConnected(true);
+      } else {
+        console.log('[v0] YouTube Music is not connected (status:', response.status, ')');
+        setIsConnected(false);
+      }
     } catch (error) {
       console.error('[v0] YouTube Music connection check failed:', error);
       setIsConnected(false);
@@ -60,8 +68,18 @@ export default function YouTubeMusicCard({ onExpandClick }: YouTubeMusicCardProp
   const handleLogin = async () => {
     setIsLoading(true);
     try {
+      console.log('[v0] Initiating YouTube Music login...');
       const response = await fetch('/api/youtube-music/auth');
+      
+      if (!response.ok) {
+        const error = await response.json();
+        console.error('[v0] Auth endpoint error:', error);
+        setIsLoading(false);
+        return;
+      }
+      
       const { url } = await response.json();
+      console.log('[v0] Redirecting to Google OAuth:', url);
       window.location.href = url;
     } catch (error) {
       console.error('[v0] YouTube Music login error:', error);
@@ -71,8 +89,10 @@ export default function YouTubeMusicCard({ onExpandClick }: YouTubeMusicCardProp
 
   const handleLogout = async () => {
     try {
+      console.log('[v0] Disconnecting YouTube Music...');
       await fetch('/api/youtube-music/disconnect', { method: 'POST' });
       setIsConnected(false);
+      console.log('[v0] YouTube Music disconnected');
     } catch (error) {
       console.error('[v0] YouTube Music logout error:', error);
     }
@@ -141,74 +161,61 @@ export default function YouTubeMusicCard({ onExpandClick }: YouTubeMusicCardProp
           )}
 
           {/* Track info */}
-          <div>
-            <p className="text-sm font-semibold text-foreground truncate">
-              {playbackState.title}
-            </p>
-            <p className="text-xs text-muted-foreground truncate">
-              {playbackState.artist}
-            </p>
+          <div className="space-y-1">
+            <p className="text-sm font-semibold text-foreground truncate">{playbackState.title}</p>
+            <p className="text-xs text-muted-foreground truncate">{playbackState.artist}</p>
+          </div>
+
+          {/* Progress bar */}
+          <div className="space-y-1">
+            <div className="h-1 bg-muted rounded-full overflow-hidden">
+              <div
+                className="h-full bg-red-500 transition-all"
+                style={{
+                  width: `${playbackState.duration ? (playbackState.currentTime / playbackState.duration) * 100 : 0}%`,
+                }}
+              />
+            </div>
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>{formatTime(playbackState.currentTime)}</span>
+              <span>{formatTime(playbackState.duration)}</span>
+            </div>
           </div>
 
           {/* Controls */}
-          <div className="flex items-center gap-2">
+          <div className="flex gap-2">
             <Button
+              onClick={() => {
+                // Playback controls would be implemented here
+              }}
               size="sm"
-              variant="outline"
-              className="flex-1 border-border/50 hover:bg-primary/10"
-              onClick={() => (playbackState.isPlaying ? pause() : play())}
+              variant="ghost"
+              className="flex-1"
             >
               {playbackState.isPlaying ? (
-                <>
-                  <Pause className="h-4 w-4 mr-1" />
-                  Pause
-                </>
+                <Pause className="h-4 w-4" />
               ) : (
-                <>
-                  <Play className="h-4 w-4 mr-1" />
-                  Play
-                </>
+                <Play className="h-4 w-4" />
               )}
             </Button>
             <Button
-              size="sm"
-              variant="outline"
-              className="flex-1 border-border/50 hover:bg-primary/10"
               onClick={onExpandClick}
+              size="sm"
+              className="flex-1 bg-red-600 hover:bg-red-700"
             >
               <Maximize2 className="h-4 w-4 mr-1" />
               Expand
             </Button>
           </div>
-
-          {/* Progress */}
-          {playbackState.duration > 0 && (
-            <div className="space-y-1">
-              <div className="bg-background/50 rounded-full h-1">
-                <div
-                  className="bg-red-500 h-1 rounded-full transition-all"
-                  style={{
-                    width: `${(playbackState.currentTime / playbackState.duration) * 100}%`,
-                  }}
-                />
-              </div>
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>{formatTime(playbackState.currentTime)}</span>
-                <span>{formatTime(playbackState.duration)}</span>
-              </div>
-            </div>
-          )}
         </div>
       ) : (
-        <div className="py-6 text-center">
-          <p className="text-xs text-muted-foreground">
-            Select a song to start playing
+        <div className="space-y-3">
+          <p className="text-xs text-muted-foreground text-center py-4">
+            No track currently playing
           </p>
           <Button
-            size="sm"
-            variant="outline"
-            className="w-full mt-3 border-border/50"
             onClick={onExpandClick}
+            className="w-full bg-red-600 hover:bg-red-700"
           >
             <Maximize2 className="h-4 w-4 mr-2" />
             Open YouTube Music
