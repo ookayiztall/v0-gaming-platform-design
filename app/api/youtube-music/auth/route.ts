@@ -25,6 +25,8 @@ export async function GET(request: NextRequest) {
   const state = Math.random().toString(36).substring(7);
   const scope = encodeURIComponent([
     'https://www.googleapis.com/auth/youtube.readonly',
+    'https://www.googleapis.com/auth/userinfo.profile',
+    'https://www.googleapis.com/auth/userinfo.email',
   ].join(' '));
 
   const params = new URLSearchParams({
