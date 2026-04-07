@@ -34,8 +34,11 @@ export async function GET(request: NextRequest) {
     } = await supabase.auth.getUser();
 
     if (!user) {
+      console.log('[v0] No user found in playlists endpoint');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    console.log('[v0] Fetching YouTube Music integration for user:', user.id);
 
     // Get YouTube Music integration
     const { data: integration, error } = await supabase
@@ -44,9 +47,16 @@ export async function GET(request: NextRequest) {
       .eq('user_id', user.id)
       .single();
 
-    if (error || !integration) {
+    if (error) {
+      console.log('[v0] Database error:', { message: error.message, code: error.code });
+    }
+
+    if (!integration) {
+      console.log('[v0] YouTube Music integration not found for user:', user.id);
       return NextResponse.json({ error: 'YouTube Music not connected' }, { status: 404 });
     }
+
+    console.log('[v0] YouTube Music integration found');
 
     let accessToken = integration.access_token;
 
