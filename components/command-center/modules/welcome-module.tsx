@@ -45,10 +45,10 @@ export default function WelcomeModule({ spaceId, isPrivateSpace }: WelcomeModule
           <p className="text-sm text-muted-foreground">Connect with your community</p>
         </Card>
 
-        <Card className="p-6 border-border/50 bg-gradient-to-br from-green-500/10 to-green-500/5 hover:from-green-500/15 hover:to-green-500/10 transition-all cursor-pointer group">
+        <Card className="p-6 border-border/50 bg-gradient-to-br from-red-500/10 to-red-500/5 hover:from-red-500/15 hover:to-red-500/10 transition-all cursor-pointer group">
           <div className="flex items-center gap-3 mb-3">
-            <Music className="h-6 w-6 text-green-500 group-hover:scale-110 transition-transform" />
-            <h3 className="font-semibold text-foreground">Spotify</h3>
+            <Music className="h-6 w-6 text-red-500 group-hover:scale-110 transition-transform" />
+            <h3 className="font-semibold text-foreground">YouTube Music</h3>
           </div>
           <p className="text-sm text-muted-foreground">Stream music while you play</p>
         </Card>
@@ -86,7 +86,7 @@ export default function WelcomeModule({ spaceId, isPrivateSpace }: WelcomeModule
           </div>
           <div className="flex gap-2">
             <span className="text-primary">✓</span>
-            <span>Integrated Spotify player</span>
+            <span>YouTube Music player</span>
           </div>
           <div className="flex gap-2">
             <span className="text-primary">✓</span>

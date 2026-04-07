@@ -3,8 +3,15 @@
 import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Music, Play, Pause, LogOut, Loader, Maximize2 } from 'lucide-react';
+import { Music, Play, Pause, LogOut, Loader, Maximize2, RotateCw } from 'lucide-react';
 import { useYoutubeMusicPlayback } from '@/lib/youtube-music/playback-context';
+
+function formatTime(seconds: number): string {
+  if (!seconds || isNaN(seconds)) return '0:00';
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
 
 interface YouTubeMusicCardProps {
   onExpandClick: () => void;
@@ -18,21 +25,34 @@ export default function YouTubeMusicCard({ onExpandClick }: YouTubeMusicCardProp
 
   useEffect(() => {
     setMounted(true);
-    checkConnection();
 
     // Listen for query params (callback from YouTube auth)
     const params = new URLSearchParams(window.location.search);
     if (params.get('youtube_connected') === 'true') {
+      console.log('[v0] YouTube connected via callback');
       setIsConnected(true);
       window.history.replaceState({}, '', window.location.pathname);
+      
+      // Wait for browser to sync with server before checking playlists
+      setTimeout(() => {
+        checkConnection();
+      }, 500);
+      return;
     }
+
+    // Check if user has YouTube connected
+    checkConnection();
   }, []);
 
   const checkConnection = async () => {
     try {
+      console.log('[v0] Checking YouTube Music connection...');
       const response = await fetch('/api/youtube-music/playlists');
-      setIsConnected(response.ok);
-    } catch {
+      const isConnected = response.ok;
+      console.log('[v0] YouTube Music connection check:', { status: response.status, isConnected });
+      setIsConnected(isConnected);
+    } catch (error) {
+      console.error('[v0] YouTube Music connection check failed:', error);
       setIsConnected(false);
     }
   };
@@ -83,20 +103,31 @@ export default function YouTubeMusicCard({ onExpandClick }: YouTubeMusicCardProp
           <p className="text-xs text-muted-foreground text-center py-4">
             Connect your Google account to listen to YouTube Music
           </p>
-          <Button
-            onClick={handleLogin}
-            disabled={isLoading}
-            className="w-full bg-red-600 hover:bg-red-700 text-white text-sm font-semibold"
-          >
-            {isLoading ? (
-              <>
-                <Loader className="h-4 w-4 mr-2 animate-spin" />
-                Connecting...
-              </>
-            ) : (
-              'Connect YouTube'
-            )}
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={handleLogin}
+              disabled={isLoading}
+              className="flex-1 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold"
+            >
+              {isLoading ? (
+                <>
+                  <Loader className="h-4 w-4 mr-2 animate-spin" />
+                  Connecting...
+                </>
+              ) : (
+                'Connect YouTube'
+              )}
+            </Button>
+            <Button
+              onClick={checkConnection}
+              size="sm"
+              variant="outline"
+              className="border-border/50"
+              title="Refresh connection status"
+            >
+              <RotateCw className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       ) : playbackState.videoId ? (
         <div className="space-y-3">
@@ -186,11 +217,4 @@ export default function YouTubeMusicCard({ onExpandClick }: YouTubeMusicCardProp
       )}
     </Card>
   );
-}
-
-function formatTime(seconds: number): string {
-  if (!seconds) return '0:00';
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
