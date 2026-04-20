@@ -1,4 +1,10 @@
--- Create stripe_connect_accounts table for storing Stripe Connect account info
+-- Drop existing tables and recreate them cleanly
+DROP TABLE IF EXISTS payment_history CASCADE;
+DROP TABLE IF EXISTS payment_methods CASCADE;
+DROP TABLE IF EXISTS stripe_connect_accounts CASCADE;
+DROP TABLE IF EXISTS space_subscriptions CASCADE;
+
+-- Create stripe_connect_accounts table
 CREATE TABLE stripe_connect_accounts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   space_id UUID NOT NULL REFERENCES spaces(id) ON DELETE CASCADE,
@@ -11,7 +17,7 @@ CREATE TABLE stripe_connect_accounts (
   UNIQUE(space_id, user_id)
 );
 
--- Create payment_methods table for storing customer payment methods
+-- Create payment_methods table
 CREATE TABLE payment_methods (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   space_id UUID NOT NULL REFERENCES spaces(id) ON DELETE CASCADE,
@@ -28,7 +34,7 @@ CREATE TABLE payment_methods (
   UNIQUE(space_id, user_id)
 );
 
--- Create space_subscriptions table for tracking subscription status
+-- Create space_subscriptions table
 CREATE TABLE space_subscriptions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   space_id UUID NOT NULL REFERENCES spaces(id) ON DELETE CASCADE,
@@ -46,7 +52,7 @@ CREATE TABLE space_subscriptions (
   CONSTRAINT status_check CHECK (status IN ('active', 'canceled', 'past_due', 'inactive'))
 );
 
--- Create payment_history table for tracking all transactions
+-- Create payment_history table
 CREATE TABLE payment_history (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   space_id UUID NOT NULL REFERENCES spaces(id) ON DELETE CASCADE,
@@ -63,10 +69,10 @@ CREATE TABLE payment_history (
   CONSTRAINT payment_status_check CHECK (status IN ('succeeded', 'processing', 'requires_payment_method', 'requires_action', 'failed'))
 );
 
--- Add stripe_customer_id to spaces table
-ALTER TABLE spaces ADD COLUMN stripe_customer_id TEXT UNIQUE;
+-- Add stripe_customer_id column to spaces if it doesn't exist
+ALTER TABLE spaces ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT UNIQUE;
 
--- Create indexes for better query performance
+-- Create indexes
 CREATE INDEX idx_stripe_connect_accounts_space_id ON stripe_connect_accounts(space_id);
 CREATE INDEX idx_stripe_connect_accounts_user_id ON stripe_connect_accounts(user_id);
 CREATE INDEX idx_payment_methods_space_id ON payment_methods(space_id);
@@ -76,13 +82,13 @@ CREATE INDEX idx_space_subscriptions_stripe_customer_id ON space_subscriptions(s
 CREATE INDEX idx_payment_history_space_id ON payment_history(space_id);
 CREATE INDEX idx_payment_history_stripe_payment_intent_id ON payment_history(stripe_payment_intent_id);
 
--- Enable RLS (Row Level Security)
+-- Enable RLS
 ALTER TABLE stripe_connect_accounts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE payment_methods ENABLE ROW LEVEL SECURITY;
 ALTER TABLE space_subscriptions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE payment_history ENABLE ROW LEVEL SECURITY;
 
--- RLS Policy: Users can only see their own Stripe Connect accounts
+-- Create RLS policies
 CREATE POLICY "Users can view own stripe_connect_accounts"
   ON stripe_connect_accounts FOR SELECT
   USING (auth.uid() = user_id);
@@ -95,7 +101,6 @@ CREATE POLICY "Users can update own stripe_connect_accounts"
   ON stripe_connect_accounts FOR UPDATE
   USING (auth.uid() = user_id);
 
--- RLS Policy: Users can only see their own payment methods
 CREATE POLICY "Users can view own payment_methods"
   ON payment_methods FOR SELECT
   USING (auth.uid() = user_id);
@@ -108,14 +113,12 @@ CREATE POLICY "Users can update own payment_methods"
   ON payment_methods FOR UPDATE
   USING (auth.uid() = user_id);
 
--- RLS Policy: Users can view space_subscriptions for their spaces
 CREATE POLICY "Users can view their space subscriptions"
   ON space_subscriptions FOR SELECT
   USING (EXISTS (
     SELECT 1 FROM spaces WHERE id = space_id AND owner_id = auth.uid()
   ));
 
--- RLS Policy: Users can view payment_history for their spaces
 CREATE POLICY "Users can view their payment_history"
   ON payment_history FOR SELECT
   USING (EXISTS (
