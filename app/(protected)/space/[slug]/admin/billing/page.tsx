@@ -2,13 +2,18 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import { loadStripe } from '@stripe/js'
+import { CardElement, Elements, useElements, useStripe } from '@stripe/react-stripe-js'
 import { createBrowserClient } from '@/lib/supabase/client'
+import { useSubscription } from '@/lib/hooks/use-subscription'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
-import { AlertCircle, CreditCard, CheckCircle, AlertTriangle } from 'lucide-react'
+import { AlertCircle, CreditCard, CheckCircle, AlertTriangle, Loader } from 'lucide-react'
+
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
 interface SpaceData {
   id: string
@@ -31,19 +36,19 @@ const planDetails = {
   premium: { name: 'Premium', members: 20, price: 19.95 },
 }
 
-export default function BillingPage() {
+function BillingPageContent() {
   const params = useParams()
   const router = useRouter()
   const slug = params.slug as string
   const supabase = createBrowserClient()
 
   const [space, setSpace] = useState<SpaceData | null>(null)
-  const [billingInfo, setBillingInfo] = useState<BillingInfo | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isAdmin, setIsAdmin] = useState(false)
-  const [stripeConnectId, setStripeConnectId] = useState('')
   const [isSaving, setIsSaving] = useState(false)
-  const [isCancelling, setIsCancelling] = useState(false)
+  const [spaceId, setSpaceId] = useState<string>('')
+  
+  const { subscription, isLoading: subscriptionLoading, createSubscription, cancelSubscription } = useSubscription(spaceId)
 
   useEffect(() => {
     loadData()
@@ -70,6 +75,7 @@ export default function BillingPage() {
       }
 
       setSpace(spaceData)
+      setSpaceId(spaceData.id)
 
       // Check if user is admin
       const { data: membership } = await supabase
@@ -85,105 +91,48 @@ export default function BillingPage() {
       }
 
       setIsAdmin(true)
-
-      // Get billing info
-      const { data: billing } = await supabase
-        .from('space_subscriptions')
-        .select('stripe_customer_id, stripe_subscription_id, status, period_start, period_end')
-        .eq('space_id', spaceData.id)
-        .single()
-
-      if (billing) {
-        setBillingInfo(billing)
-      }
     } catch (error) {
-      console.error('Error loading data:', error)
+      console.error('[v0] Error loading billing data:', error)
     } finally {
       setIsLoading(false)
     }
   }
 
-  const handleConnectStripe = async () => {
-    // TODO: Implement Stripe Connect OAuth flow
-    alert('Stripe Connect setup will be available soon. This will redirect to Stripe OAuth.')
-  }
+  const handleUpgradeToSubscription = async () => {
+    if (!space || subscriptionLoading) return
 
-  const handleSaveStripeId = async () => {
-    if (!stripeConnectId || !space) return
-
-    setIsSaving(true)
     try {
-      // This would typically validate the Connect ID with Stripe
-      alert('Stripe Account ID saved. Payment processing is now enabled.')
-      setStripeConnectId('')
-      await loadData()
+      setIsSaving(true)
+      const result = await createSubscription()
+      
+      if (result?.clientSecret) {
+        // Redirect to payment confirmation
+        window.location.href = `/space/${slug}/admin/billing/payment?clientSecret=${result.clientSecret}`
+      }
     } catch (error) {
-      console.error('Error saving Stripe ID:', error)
-      alert('Failed to save Stripe configuration')
+      console.error('[v0] Error creating subscription:', error)
+      alert('Failed to create subscription. Please try again.')
     } finally {
       setIsSaving(false)
     }
   }
 
   const handleCancelSubscription = async () => {
-    if (!space || space.plan_tier === 'free') return
+    if (!space || !subscription || subscription.status !== 'active') return
 
-    if (!confirm('Cancel subscription? Your space will remain active for 14 days. After that, if you don\'t renew, it will be downgraded to the free plan.')) {
+    if (!confirm('Are you sure you want to cancel your subscription? Your space will remain active until the end of the billing period.')) {
       return
     }
 
-    setIsCancelling(true)
     try {
-      const response = await fetch(`/api/subscriptions/cancel`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ spaceId: space.id }),
-      })
-
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Failed to cancel')
-      }
-
-      const data = await response.json()
-      alert(data.message)
-      await loadData()
+      setIsSaving(true)
+      await cancelSubscription()
+      alert('Subscription cancelled successfully.')
     } catch (error) {
-      console.error('Error cancelling subscription:', error)
-      alert(`Failed to cancel subscription: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      console.error('[v0] Error cancelling subscription:', error)
+      alert('Failed to cancel subscription. Please try again.')
     } finally {
-      setIsCancelling(false)
-    }
-  }
-
-  const handleRenewSubscription = async () => {
-    if (!space) return
-
-    if (!confirm('Renew subscription? This will restore your previous plan settings.')) {
-      return
-    }
-
-    setIsCancelling(true)
-    try {
-      const response = await fetch(`/api/subscriptions/renew`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ spaceId: space.id }),
-      })
-
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Failed to renew')
-      }
-
-      const data = await response.json()
-      alert(data.message)
-      await loadData()
-    } catch (error) {
-      console.error('Error renewing subscription:', error)
-      alert(`Failed to renew subscription: ${error instanceof Error ? error.message : 'Unknown error'}`)
-    } finally {
-      setIsCancelling(false)
+      setIsSaving(false)
     }
   }
 
@@ -238,30 +187,30 @@ export default function BillingPage() {
                 </div>
                 <div className="p-4 rounded-lg border border-border/40">
                   <p className="text-sm text-muted-foreground mb-1">Status</p>
-                  <Badge className={`mt-1 ${billingInfo?.status === 'active' ? 'bg-green-500/20 text-green-700' : space.plan_tier === 'free' ? 'bg-primary/20 text-primary' : 'bg-yellow-500/20 text-yellow-700'}`}>
-                    {billingInfo?.status || (space.plan_tier === 'free' ? 'Active' : 'Setup Required')}
+                  <Badge className={`mt-1 ${subscription?.status === 'active' ? 'bg-green-500/20 text-green-700' : space.plan_tier === 'free' ? 'bg-primary/20 text-primary' : 'bg-yellow-500/20 text-yellow-700'}`}>
+                    {subscription?.status || (space.plan_tier === 'free' ? 'Active' : 'Setup Required')}
                   </Badge>
                 </div>
               </div>
 
-              {space.plan_tier !== 'free' && !billingInfo?.status && (
+              {space.plan_tier !== 'free' && subscription?.status !== 'active' && (
                 <div className="p-4 rounded-lg bg-yellow-50/30 dark:bg-yellow-950/20 border border-yellow-200/30 dark:border-yellow-800/30">
                   <div className="flex gap-3">
                     <AlertTriangle className="h-5 w-5 text-yellow-700 dark:text-yellow-400 flex-shrink-0" />
                     <div>
-                      <p className="font-semibold text-sm text-yellow-800 dark:text-yellow-300 mb-1">Payment Setup Required</p>
-                      <p className="text-xs text-yellow-700 dark:text-yellow-400">Your {planInfo.name} plan requires a payment method. Please add your Stripe account below to activate billing.</p>
+                      <p className="font-semibold text-sm text-yellow-800 dark:text-yellow-300 mb-1">Payment Required</p>
+                      <p className="text-xs text-yellow-700 dark:text-yellow-400">Your {planInfo.name} plan requires a payment method. Set up your payment method below to activate billing.</p>
                     </div>
                   </div>
                 </div>
               )}
 
-              {space.plan_tier !== 'free' && billingInfo?.period_end && (
+              {space.plan_tier !== 'free' && subscription?.current_period_end && (
                 <div className="p-3 rounded-lg bg-muted/30 border border-border/40">
                   <p className="text-sm">
                     <span className="text-muted-foreground">Next billing date:</span>{' '}
                     <span className="font-semibold">
-                      {new Date(billingInfo.period_end).toLocaleDateString()}
+                      {new Date(subscription.current_period_end).toLocaleDateString()}
                     </span>
                   </p>
                 </div>
@@ -272,7 +221,16 @@ export default function BillingPage() {
                   <p className="text-sm text-muted-foreground mb-3">
                     Want to upgrade to more members and features?
                   </p>
-                  <Button>Upgrade to Standard (10 members)</Button>
+                  <Button onClick={handleUpgradeToSubscription} disabled={subscriptionLoading || isSaving}>
+                    {subscriptionLoading || isSaving ? (
+                      <>
+                        <Loader className="h-4 w-4 mr-2 animate-spin" />
+                        Setting up...
+                      </>
+                    ) : (
+                      'Upgrade to Standard (10 members)'
+                    )}
+                  </Button>
                 </div>
               )}
 
@@ -280,28 +238,15 @@ export default function BillingPage() {
                 <div className="pt-4 border-t">
                   <p className="text-sm font-medium mb-3">Subscription Actions</p>
                   <div className="flex gap-2">
-                    {billingInfo?.status === 'active' ? (
+                    {subscription?.status === 'active' ? (
                       <Button 
                         variant="outline" 
                         className="text-red-600 hover:text-red-700 hover:bg-red-50"
                         onClick={handleCancelSubscription}
-                        disabled={isCancelling}
+                        disabled={isSaving}
                       >
-                        {isCancelling ? 'Cancelling...' : 'Cancel Subscription'}
+                        {isSaving ? 'Cancelling...' : 'Cancel Subscription'}
                       </Button>
-                    ) : billingInfo?.status === 'cancelled' ? (
-                      <>
-                        <Button 
-                          variant="outline"
-                          onClick={handleRenewSubscription}
-                          disabled={isCancelling}
-                        >
-                          {isCancelling ? 'Renewing...' : 'Renew Now'}
-                        </Button>
-                        <p className="text-xs text-muted-foreground flex items-center">
-                          Grace period expires: {billingInfo.period_end ? new Date(billingInfo.period_end).toLocaleDateString() : 'Unknown'}
-                        </p>
-                      </>
                     ) : null}
                   </div>
                 </div>
@@ -318,7 +263,7 @@ export default function BillingPage() {
               <CardDescription>
                 {space.plan_tier === 'free'
                   ? 'Add a payment method when you upgrade to a paid plan'
-                  : 'Connect your Stripe account to receive payments'}
+                  : 'Set up your payment method for subscription billing'}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -328,53 +273,30 @@ export default function BillingPage() {
                     Payment methods are only needed for paid plans (Standard and Premium). Your free plan doesn't require any payment information.
                   </p>
                 </div>
+              ) : subscription?.stripe_subscription_id ? (
+                <div className="p-4 rounded-lg bg-green-50/30 dark:bg-green-950/20 border border-green-200/30 dark:border-green-800/30 flex items-center gap-3">
+                  <CheckCircle className="h-5 w-5 text-green-700 dark:text-green-400" />
+                  <div>
+                    <p className="font-semibold text-sm text-green-800 dark:text-green-300">Payment Method Connected</p>
+                    <p className="text-xs text-green-700 dark:text-green-400">Your {planInfo.name} plan subscription is active and billing is enabled</p>
+                  </div>
+                </div>
               ) : (
-                <>
-                  {billingInfo?.stripe_customer_id ? (
-                    <div className="p-4 rounded-lg bg-green-50/30 dark:bg-green-950/20 border border-green-200/30 dark:border-green-800/30 flex items-center gap-3">
-                      <CheckCircle className="h-5 w-5 text-green-700 dark:text-green-400" />
-                      <div>
-                        <p className="font-semibold text-sm text-green-800 dark:text-green-300">Payment Method Connected</p>
-                        <p className="text-xs text-green-700 dark:text-green-400">Stripe account is connected and active</p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      <p className="text-sm text-muted-foreground">
-                        Connect your Stripe account to enable payments for this space. This allows you to receive payments for your {planInfo.name} plan subscription.
-                      </p>
+                <div className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    To activate your {planInfo.name} plan subscription, you need to add a valid payment method.
+                  </p>
 
-                      <div className="space-y-3">
-                        <label className="text-sm font-medium block">Connect Stripe Account</label>
-                        <Button onClick={handleConnectStripe} className="w-full gap-2">
-                          <CreditCard className="h-4 w-4" />
-                          Connect with Stripe
-                        </Button>
-                        <p className="text-xs text-muted-foreground">
-                          You'll be redirected to Stripe to authorize access to your account
-                        </p>
-                      </div>
-
-                      <div className="border-t pt-4">
-                        <p className="text-sm font-medium mb-3">Or enter Stripe Connect ID manually</p>
-                        <div className="flex gap-2">
-                          <Input
-                            placeholder="acct_1234567890..."
-                            value={stripeConnectId}
-                            onChange={(e) => setStripeConnectId(e.target.value)}
-                          />
-                          <Button
-                            onClick={handleSaveStripeId}
-                            disabled={!stripeConnectId || isSaving}
-                            variant="outline"
-                          >
-                            {isSaving ? 'Saving...' : 'Save'}
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </>
+                  <div className="p-4 rounded-lg border border-border/40 bg-accent/5">
+                    <PaymentSetupForm 
+                      spaceId={space?.id || ''} 
+                      onSuccess={() => {
+                        alert('Payment method added successfully!')
+                        loadData()
+                      }}
+                    />
+                  </div>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -390,14 +312,14 @@ export default function BillingPage() {
             <CardContent>
               {space.plan_tier === 'free' ? (
                 <p className="text-sm text-muted-foreground">No billing history for free plans</p>
-              ) : billingInfo?.status === 'active' ? (
+              ) : subscription?.status === 'active' && subscription.current_period_start ? (
                 <div className="space-y-3">
                   <div className="flex justify-between items-center p-3 rounded-lg border border-border/40 hover:bg-accent/5">
                     <div>
                       <p className="font-semibold text-sm">Monthly Subscription</p>
-                      <p className="text-xs text-muted-foreground">{new Date(billingInfo.period_start || '').toLocaleDateString()}</p>
+                      <p className="text-xs text-muted-foreground">{new Date(subscription.current_period_start).toLocaleDateString()}</p>
                     </div>
-                    <p className="font-semibold">${planInfo.price}</p>
+                    <p className="font-semibold">${subscription.price_monthly}</p>
                   </div>
                 </div>
               ) : (
@@ -408,5 +330,125 @@ export default function BillingPage() {
         </TabsContent>
       </Tabs>
     </div>
+  )
+}
+
+function PaymentSetupForm({ spaceId, onSuccess }: { spaceId: string; onSuccess: () => void }) {
+  const stripe = useStripe()
+  const elements = useElements()
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!stripe || !elements) {
+      setError('Stripe is not loaded')
+      return
+    }
+
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      // Create setup intent
+      const setupResponse = await fetch('/api/stripe/setup-intent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ space_id: spaceId }),
+      })
+
+      if (!setupResponse.ok) {
+        throw new Error('Failed to create setup intent')
+      }
+
+      const { clientSecret } = await setupResponse.json()
+
+      // Confirm setup intent
+      const result = await stripe.confirmCardSetup(clientSecret, {
+        payment_method: {
+          card: elements.getElement(CardElement)!,
+          billing_details: {},
+        },
+      })
+
+      if (result.error) {
+        setError(result.error.message || 'Payment method setup failed')
+        return
+      }
+
+      // Create subscription
+      const subscriptionResponse = await fetch('/api/stripe/subscriptions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          space_id: spaceId,
+          action: 'create_subscription',
+        }),
+      })
+
+      if (!subscriptionResponse.ok) {
+        throw new Error('Failed to create subscription')
+      }
+
+      onSuccess()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium mb-2">Card Details</label>
+        <div className="p-3 border border-border/40 rounded-lg">
+          <CardElement
+            options={{
+              style: {
+                base: {
+                  fontSize: '14px',
+                  color: '#1f2937',
+                  fontFamily: 'system-ui, -apple-system, sans-serif',
+                },
+                invalid: {
+                  color: '#dc2626',
+                },
+              },
+            }}
+          />
+        </div>
+      </div>
+
+      {error && (
+        <div className="p-3 rounded-lg bg-red-50/30 dark:bg-red-950/20 border border-red-200/30 dark:border-red-800/30">
+          <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
+        </div>
+      )}
+
+      <Button
+        type="submit"
+        disabled={!stripe || isLoading}
+        className="w-full"
+      >
+        {isLoading ? (
+          <>
+            <Loader className="h-4 w-4 mr-2 animate-spin" />
+            Setting up payment...
+          </>
+        ) : (
+          'Add Payment Method & Activate'
+        )}
+      </Button>
+    </form>
+  )
+}
+
+export default function BillingPage() {
+  return (
+    <Elements stripe={stripePromise}>
+      <BillingPageContent />
+    </Elements>
   )
 }
