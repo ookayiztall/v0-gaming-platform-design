@@ -35,10 +35,10 @@ export default function CommandCenterLayout({
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
-      {/* Main 3-Column Grid */}
-      <div className="grid grid-cols-12 gap-4 p-6 min-h-screen">
+      {/* Main Responsive Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-12 gap-4 p-3 sm:p-4 md:p-6 min-h-screen">
         {/* LEFT SIDEBAR - Interactive Module Cards */}
-        <div className="col-span-3 overflow-y-auto space-y-4 pr-2">
+        <div className="col-span-1 md:col-span-1 lg:col-span-3 overflow-y-auto space-y-4 md:pr-2">
           {/* Chat Rooms */}
           <div>
             <h2 className="text-xs font-bold text-primary uppercase tracking-wider mb-3">Chat Rooms</h2>
@@ -71,7 +71,7 @@ export default function CommandCenterLayout({
         </div>
 
         {/* CENTER VIEWPORT - Main Interactive Content */}
-        <div className="col-span-6">
+        <div className="col-span-1 md:col-span-1 lg:col-span-6 order-first md:order-none">
           <CenterViewport
             activeModule={activeModule}
             setActiveModule={setActiveModule}
@@ -81,7 +81,7 @@ export default function CommandCenterLayout({
         </div>
 
         {/* RIGHT SIDEBAR - Quick Stat Cards */}
-        <div className="col-span-3 overflow-y-auto space-y-4 pl-2">
+        <div className="col-span-1 md:col-span-1 lg:col-span-3 overflow-y-auto space-y-4 md:pl-2">
           {/* Friends */}
           <div>
             <h2 className="text-xs font-bold text-primary uppercase tracking-wider mb-3">Friends</h2>
