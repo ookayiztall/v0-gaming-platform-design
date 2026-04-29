@@ -53,7 +53,7 @@ export default function CenterViewport({
   isPrivateSpace,
 }: CenterViewportProps) {
   return (
-    <Card className="bg-gradient-to-br from-card/60 via-card/40 to-primary/5 border-primary/20 overflow-hidden h-full min-h-[calc(100vh-120px)]">
+    <Card className="bg-gradient-to-br from-card/60 via-card/40 to-primary/5 border-primary/20 overflow-hidden h-full min-h-[calc(100vh-200px)] md:min-h-[calc(100vh-120px)]">
       <div className="overflow-y-auto h-full">
         <Suspense fallback={<ModuleLoading />}>
           {activeModule === 'welcome' && (
